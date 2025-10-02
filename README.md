@@ -42,7 +42,7 @@ uvicorn backend.app.main:app --reload --port 8000
 
 ## Try it
 
-**Get next ticket**
+**Terminal C - Get next ticket**
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/v1/tickets/next

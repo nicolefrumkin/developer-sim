@@ -5,6 +5,7 @@ import redis
 from backend.worker.worker import run_in_container
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse as StarletteJSONResponse
 from pydantic import BaseModel
 from datetime import datetime
@@ -25,6 +26,15 @@ app = FastAPI(
     version="0.1",
     default_response_class=PrettyJSONResponse
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # your Next dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # --------- Models ---------
 class SeedFile(BaseModel):
