@@ -1,0 +1,15 @@
+# backend/runner/Dockerfile.runner
+FROM python:3.12-slim
+
+# speed & safety basics
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
+# install test tools
+RUN python -m pip install --upgrade pip && \
+    pip install pytest==8.* pytest-cov==5.* ruff==0.*
+
+# workdir for the temp project we copy in
+WORKDIR /workspace
+
+# entrypoint expects tests/files to already be in /workspace
+CMD ["python", "-m", "pytest", "-q"]
