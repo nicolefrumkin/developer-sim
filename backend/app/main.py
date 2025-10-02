@@ -86,26 +86,30 @@ def run_tests(req: RunRequest):
         with open(os.path.join(tmp, "pyproject.toml"), "w", encoding="utf-8") as f:
             f.write('[tool.pytest.ini_options]\naddopts = "-q"\n')
 
-        # Run pytest as a subprocess (MVP; later run inside Docker)
-        cmd = [sys.executable, "-m", "pytest", "-q"]
+        # ---- Run tests inside Docker sandbox ----
+        docker_cmd = [
+            "docker", "run", "--rm",
+            "--network", "none",           # no internet
+            "--cpus", "1",                 # limit CPU
+            "--memory", "512m",            # limit RAM
+            "--pids-limit", "128",         # process limit
+            "-v", f"{tmp}:/workspace:ro",  # mount temp workspace read-only
+            "devsim-runner:py312"          # your image
+        ]
+
         try:
             proc = subprocess.run(
-                cmd,
-                cwd=tmp,
+                docker_cmd,
                 capture_output=True,
                 text=True,
                 timeout=req.timeout_ms / 1000.0
             )
             stdout, stderr = proc.stdout, proc.stderr
-            passed = (" 2 passed" in stdout) or (" 2 passed" in stderr)
-            failed = (" failed" in stdout) or (" failed" in stderr)
+            status = "passed" if proc.returncode == 0 else "failed"
 
-            status = "passed" if proc.returncode == 0 else ("failed" if failed else "error")
-
-            # Extremely simple parsing (MVP): if failed, attach stdout lines as feedback
             feedback = []
             if status != "passed":
-                for i, line in enumerate(stdout.splitlines()[-10:], start=1):
+                for i, line in enumerate(stdout.splitlines()[-20:], start=1):
                     feedback.append({"path": req.target_path, "line": i, "kind": "test-fail", "msg": line})
 
             finished_at = datetime.utcnow().isoformat() + "Z"
@@ -114,8 +118,8 @@ def run_tests(req: RunRequest):
                 "ticket_id": req.ticket_id,
                 "status": status,
                 "feedback": feedback,
-                "stats": { "tests_total": 2, "tests_passed": 2 if status=="passed" else 0, "time_ms": 0 },
-                "artifacts": { "stdout": stdout, "stderr": stderr },
+                "stats": {"tests_total": 2, "tests_passed": 2 if status == "passed" else 0, "time_ms": 0},
+                "artifacts": {"stdout": stdout, "stderr": stderr},
                 "started_at": started_at,
                 "finished_at": finished_at
             }
@@ -131,3 +135,4 @@ def run_tests(req: RunRequest):
                 "started_at": started_at,
                 "finished_at": finished_at
             }
+
