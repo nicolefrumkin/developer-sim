@@ -1,4 +1,8 @@
+import time
 import shutil
+from rq import Queue
+import redis
+from backend.worker.worker import run_in_container
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.responses import JSONResponse as StarletteJSONResponse
@@ -53,6 +57,9 @@ TEST_FILE = textwrap.dedent("""
         assert sum(-2,5) == 3
 """)
 
+rconn = redis.from_url("redis://localhost:6379/0")
+runs_q = Queue("runs", connection=rconn)
+
 # --------- Endpoints ---------
 @app.get("/v1/tickets/next")
 def get_next_ticket():
@@ -97,42 +104,49 @@ def run_tests(req: RunRequest):
             "devsim-runner:py312"          # your image
         ]
 
-        try:
-            proc = subprocess.run(
-                docker_cmd,
-                capture_output=True,
-                text=True,
-                timeout=req.timeout_ms / 1000.0
-            )
-            stdout, stderr = proc.stdout, proc.stderr
-            status = "passed" if proc.returncode == 0 else "failed"
+        # ---- Enqueue job to the worker ----
+        payload = {
+            "ticket_id": req.ticket_id,
+            "code": req.code,
+            "target_path": req.target_path,
+            "timeout_ms": req.timeout_ms,
+            "tests": TEST_FILE
+        }
 
-            feedback = []
-            if status != "passed":
-                for i, line in enumerate(stdout.splitlines()[-20:], start=1):
-                    feedback.append({"path": req.target_path, "line": i, "kind": "test-fail", "msg": line})
+        # enqueue by dotted path so the API doesn’t import Docker stuff
+        job = runs_q.enqueue(run_in_container, payload)
 
-            finished_at = datetime.utcnow().isoformat() + "Z"
+        deadline = time.time() + (req.timeout_ms/1000.0) + 2  # a tiny grace period
+        result = None
+
+        while time.time() < deadline:
+            # refresh cached data from Redis
+            job.refresh()
+            status = job.get_status()  # 'queued' | 'started' | 'deferred' | 'finished' | 'failed' | ...
+            if status in ("finished", "failed"):
+                result = job.result  # dict returned by run_in_container (or None if failed before returning)
+                break
+            time.sleep(0.2)  # poll interval
+
+        if result is None:
+            # timeout or no result
             return {
-                "run_id": run_id,
-                "ticket_id": req.ticket_id,
-                "status": status,
-                "feedback": feedback,
-                "stats": {"tests_total": 2, "tests_passed": 2 if status == "passed" else 0, "time_ms": 0},
-                "artifacts": {"stdout": stdout, "stderr": stderr},
-                "started_at": started_at,
-                "finished_at": finished_at
-            }
-        except subprocess.TimeoutExpired:
-            finished_at = datetime.utcnow().isoformat() + "Z"
-            return {
-                "run_id": run_id,
+                "run_id": job.id,
                 "ticket_id": req.ticket_id,
                 "status": "error",
-                "feedback": [{"path": req.target_path, "line": 1, "kind": "runtime-error", "msg": "Timeout"}],
-                "stats": {"tests_total": 2, "tests_passed": 0, "time_ms": req.timeout_ms},
-                "artifacts": {"stdout": "", "stderr": "Timeout"},
-                "started_at": started_at,
-                "finished_at": finished_at
+                "feedback": [{
+                    "path": req.target_path,
+                    "line": 1,
+                    "kind": "runtime-error",
+                    "msg": f"Runner timeout or no result (job status: {job.get_status()})"
+                }],
+                "stats": {"tests_total": 0, "tests_passed": 0, "time_ms": req.timeout_ms},
+                "artifacts": {"stdout": "", "stderr": ""}
             }
+
+        # success path: add timestamps if you want
+        result["started_at"] = started_at
+        result["finished_at"] = datetime.utcnow().isoformat() + "Z"
+        return result
+
 

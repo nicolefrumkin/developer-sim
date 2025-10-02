@@ -1,6 +1,5 @@
 import os, tempfile, subprocess, sys, uuid
-
-from rq import Queue, Worker
+from rq import Queue, SimpleWorker
 import redis
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -63,5 +62,5 @@ def run_in_container(payload: dict) -> dict:
 if __name__ == "__main__":
     r = redis.from_url(REDIS_URL)
     q = Queue("runs", connection=r)
-    worker = Worker([q], connection=r)
+    worker = SimpleWorker([q], connection=r)  
     worker.work()
