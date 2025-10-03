@@ -110,7 +110,7 @@ export default function Page() {
   return (
     <main style={{ maxWidth: 1100, margin: '24px auto', padding: '0 16px' }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Developer Simulator</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Job Simulator</h1>
         {statusBadge}
       </header>
 

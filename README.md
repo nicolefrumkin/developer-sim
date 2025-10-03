@@ -1,97 +1,35 @@
-# Job Sim — walking skeleton
+# Job Sim — Quick Start
 
-A tiny “work-day simulator” slice: an API gives **Ticket #1** and runs your code in a safe **Docker** sandbox, returning **pass/fail + feedback**.
+## Run the app
 
-## Quick start (Windows / PowerShell)
-
-**Prereqs:** Docker Desktop, Python 3.12+, Git.
-This project uses **Redis** (we’ll run it in Docker).
+Open **PowerShell** in the project root and run:
 
 ```powershell
-# 1) Clone & enter
-git clone https://github.com/nicolefrumkin/job-sim.git
-cd job-sim
-
-# 2) Build the sandbox image (pytest, ruff, etc.)
-docker build -t jobsim-runner:py312 -f backend/runner/Dockerfile.runner .
-
-# 3) Start Redis
-docker run -d --name jobsim-redis -p 6379:6379 redis:7
-
-# 4) Python deps (API + worker)
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install fastapi "uvicorn[standard]" redis rq pydantic
+.\scripts\dev.ps1
 ```
 
-Open **two terminals**:
+This will:
 
-**Terminal A – Worker (stay in repo root):**
+* Build the Docker runner image
 
-```powershell
-.\.venv\Scripts\activate
-python -m backend.worker.worker
-```
+* Start Redis in Docker
 
-**Terminal B – API:**
+* Create a Python virtual environment + install dependencies
 
-```powershell
-.\.venv\Scripts\activate
-uvicorn backend.app.main:app --reload --port 8000
-```
+* Launch the Worker, API, and Frontend in separate windows
 
-## Try it
+* **API:** [http://localhost:8000](http://localhost:8000) (docs at `/docs`)
 
-**Terminal C - Get next ticket**
-
-```powershell
-Invoke-RestMethod http://localhost:8000/v1/tickets/next
-```
-
-**Run code for Ticket #1**
-
-```powershell
-$body = @{
-  ticket_id = "TCK-1"
-  code = "def sum(a,b): return a+b"
-  target_path = "app/main.py"
-  timeout_ms = 15000
-} | ConvertTo-Json
-
-Invoke-RestMethod -Uri http://localhost:8000/v1/runs -Method POST -Body $body -ContentType "application/json"
-```
-
-You should get JSON with `status: "passed"` (or `failed` with feedback).
-
-## Notes
-
-* If you see a **timeout**: confirm the worker is running and the image `jobsim-runner:py312` exists.
-* API docs: see `infra/api-spec.md`.
+* **Frontend:** [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## Frontend (Next.js)
+## Stop the app
 
-The frontend lives in the `frontend/` folder and talks to the backend API.
-
-### 1. Install dependencies
-
-Open a terminal **inside the `frontend/` folder** and run:
+When you’re done, run:
 
 ```powershell
-npm install
+.\scripts\down.ps1
 ```
 
-This downloads React, Next.js, and other required libraries.
-
-### 2. Run the dev server
-
-```powershell
-npm run dev
-```
-
-Now open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-⚠️ Make sure your **backend API + worker** are already running on port `8000`, otherwise the frontend will fail to load tickets.
+This will close the worker/API/frontend windows (best effort) and stop/remove the Redis container.
