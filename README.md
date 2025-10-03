@@ -1,3 +1,5 @@
+![Logo](logo.png)
+
 # Job Sim — Quick Start
 
 ## Run the app
