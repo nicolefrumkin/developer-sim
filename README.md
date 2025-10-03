@@ -13,10 +13,10 @@ git clone https://github.com/nicolefrumkin/job-sim.git
 cd job-sim
 
 # 2) Build the sandbox image (pytest, ruff, etc.)
-docker build -t devsim-runner:py312 -f backend/runner/Dockerfile.runner .
+docker build -t jobsim-runner:py312 -f backend/runner/Dockerfile.runner .
 
 # 3) Start Redis
-docker run -d --name devsim-redis -p 6379:6379 redis:7
+docker run -d --name jobsim-redis -p 6379:6379 redis:7
 
 # 4) Python deps (API + worker)
 python -m venv .venv
@@ -65,7 +65,7 @@ You should get JSON with `status: "passed"` (or `failed` with feedback).
 
 ## Notes
 
-* If you see a **timeout**: confirm the worker is running and the image `devsim-runner:py312` exists.
+* If you see a **timeout**: confirm the worker is running and the image `jobsim-runner:py312` exists.
 * API docs: see `infra/api-spec.md`.
 
 ---
@@ -74,15 +74,7 @@ You should get JSON with `status: "passed"` (or `failed` with feedback).
 
 The frontend lives in the `frontend/` folder and talks to the backend API.
 
-### 1. Configure API base URL
-
-In `frontend/.env.local` set the backend address (use `127.0.0.1` to avoid Windows DNS issues):
-
-```
-NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 Open a terminal **inside the `frontend/` folder** and run:
 
@@ -92,7 +84,7 @@ npm install
 
 This downloads React, Next.js, and other required libraries.
 
-### 3. Run the dev server
+### 2. Run the dev server
 
 ```powershell
 npm run dev
