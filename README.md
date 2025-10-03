@@ -1,4 +1,4 @@
-# Developer Sim — walking skeleton
+# Job Sim — walking skeleton
 
 A tiny “work-day simulator” slice: an API gives **Ticket #1** and runs your code in a safe **Docker** sandbox, returning **pass/fail + feedback**.
 
@@ -9,8 +9,8 @@ This project uses **Redis** (we’ll run it in Docker).
 
 ```powershell
 # 1) Clone & enter
-git clone https://github.com/nicolefrumkin/developer-sim.git
-cd developer-sim
+git clone https://github.com/nicolefrumkin/job-sim.git
+cd job-sim
 
 # 2) Build the sandbox image (pytest, ruff, etc.)
 docker build -t devsim-runner:py312 -f backend/runner/Dockerfile.runner .
@@ -67,3 +67,39 @@ You should get JSON with `status: "passed"` (or `failed` with feedback).
 
 * If you see a **timeout**: confirm the worker is running and the image `devsim-runner:py312` exists.
 * API docs: see `infra/api-spec.md`.
+
+---
+
+## Frontend (Next.js)
+
+The frontend lives in the `frontend/` folder and talks to the backend API.
+
+### 1. Configure API base URL
+
+In `frontend/.env.local` set the backend address (use `127.0.0.1` to avoid Windows DNS issues):
+
+```
+NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+```
+
+### 2. Install dependencies
+
+Open a terminal **inside the `frontend/` folder** and run:
+
+```powershell
+npm install
+```
+
+This downloads React, Next.js, and other required libraries.
+
+### 3. Run the dev server
+
+```powershell
+npm run dev
+```
+
+Now open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+⚠️ Make sure your **backend API + worker** are already running on port `8000`, otherwise the frontend will fail to load tickets.
